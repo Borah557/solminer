@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Solanite Miner Simulator</title>
+<style>
+  :root {
+    --bg-dark: #0f0f1a;
+    --text-dark: #fff;
+    --primary-dark: #00ffa3;
+    --card-dark: #1a1a2e;
+
+    --bg-light: #f9f9f9;
+    --text-light: #222;
+    --primary-light: #005b4f;
+    --card-light: #fff;
+  }
+  body {
+    font-family: 'Segoe UI', sans-serif;
+    margin: 0;
+    padding: 1em;
+    background-color: var(--bg-dark);
+    color: var(--text-dark);
+    transition: all 0.3s ease;
+  }
+  .light-mode {
+    background-color: var(--bg-light);
+    color: var(--text-light);
+  }
+  .container {
+    max-width: 480px;
+    margin: auto;
+  }
+  h1, h2 {
+    color: var(--primary-dark);
+  }
+  .light-mode h1, .light-mode h2 {
+    color: var(--primary-light);
+  }
+  button, input {
+    width: 100%;
+    padding: 1em;
+    margin: 0.5em 0;
+    border: none;
+    border-radius: 10px;
+    font-size: 1em;
+    box-sizing: border-box;
+    cursor: pointer;
+    user-select: none;
+    transition: transform 0.2s ease;
+  }
+  button:active {
+    transform: scale(0.9);
+  }
+  button {
+    background: var(--primary-dark);
+    color: #000;
+  }
+  .light-mode button {
+    background: var(--primary-light);
+    color: #fff;
+  }
+  input {
+    text-align: center;
+  }
+  .hidden {
+    display: none;
+  }
+  .wallet {
+    background: var(--card-dark);
+    padding: 1em;
+    margin-top: 2em;
+    border-radius: 10px;
+  }
+  .light-mode .wallet {
+    background: var(--card-light);
+  }
+  #modeToggle {
+    position: fixed;
+    top: 1em;
+    right: 1em;
+    padding: 0.5em 1em;
+    border-radius: 20px;
+    border: 2px solid var(--primary-dark);
+    background: transparent;
+    color: var(--primary-dark);
+    user-select: none;
+  }
+  .light-mode #modeToggle {
+    border-color: var(--primary-light);
+    color: var(--primary-light);
+  }
+  ul {
+    list-style: none;
+    padding: 0;
+    max-height: 180px;
+    overflow-y: auto;
+  }
+  ul li {
+    text-align: left;
+    font-size: 0.9em;
+    margin: 0.25em 0;
+    opacity: 0;
+    animation: fadeIn 0.5s forwards;
+  }
+  @keyframes fadeIn {
+    to {
+      opacity: 1;
+    }
+  }
+  .flex-buttons {
+    display: flex;
+    flex-direction: row;
+    gap: 0.5em;
+  }
+  .flex-buttons button {
+    flex: 1;
+  }
+  @media (max-width: 480px) {
+    .flex-buttons {
+      flex-direction: column;
+    }
+    #modeToggle {
+      top: 0.5em;
+      right: 0.5em;
+    }
+    h1 {
+      font-size: 1.5em;
+    }
+    input, button {
+      font-size: 1em;
+    }
+  }
+
+  /* Mining Machine Animation */
+  .machine {
+    margin: 2em auto;
+    width: 120px;
+    height: 120px;
+    position: relative;
+    cursor: pointer;
+  }
+  .gear {
+    width: 80px;
+    height: 80px;
+    border: 10px solid var(--primary-dark);
+    border-radius: 50%;
+    box-sizing: border-box;
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    background: radial-gradient(circle at center, #00ffa3 60%, transparent 70%);
+    animation: spin 3s linear infinite;
+  }
+  .machine.off .gear {
+    animation-play-state: paused;
+    border-color: gray;
+    background: radial-gradient(circle at center, gray 60%, transparent 70%);
+  }
+
+  @keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+
+  .machine-label {
+    text-align: center;
+    font-weight: bold;
+    margin-top: 0.5em;
+    user-select: none;
+  }
+</style>
+</head>
+<body>
+<button id="modeToggle" onclick="toggleMode()">🌗 Mode</button>
+
+<div class="container">
+  <div id="loginScreen">
+    <h1>🔐 Solanite Login</h1>
+    <p>Enter your mobile number</p>
+    <input type="text" id="mobile" placeholder="e.g. 1234567890" />
+    <button onclick="login()">Login</button>
+  </div>
+
+  <div id="dashboard" class="hidden">
+    <h1>💰 Solanite Miner</h1>
+    <p>Welcome, <span id="userMobile"></span></p>
+    <p><strong>Balance:</strong> <span id="balance">0</span> SOL</p>
+    <p><strong>GHS Power:</strong> <span id="ghsPower">0</span> GHS</p>
+    <p>Mining Rate: <span id="miningRate">0.0000</span> SOL/min</p>
+
+    <div class="machine off" id="machine" title="Click to toggle mining machine">
+      <div class="gear"></div>
+      <div class="machine-label" id="machineStatus">OFF</div>
+    </div>
+
+    <input type="number" id="buyGHSAmount" placeholder="Buy GHS (min 100 GHS)" step="100" min="100" />
+    <button id="buyGHSBtn" onclick="buyGHS()">Buy GHS (0.01 SOL / 100 GHS)</button>
+
+    <div class="wallet">
+      <h2>🪙 Wallet</h2>
+      <p>Wallet Balance: <span id="walletBalance">0.0000</span> SOL</p>
+      <input type="number" id="depositAmount" placeholder="Deposit amount (SOL)" step="0.0001" min="0" />
+      <button id="depositBtn" onclick="deposit()">Deposit</button>
+
+      <input type="number" id="withdrawAmount" placeholder="Withdraw amount (SOL)" step="0.0001" min="0" />
+      <button id="withdrawBtn" onclick="withdraw()">Withdraw</button>
+
+      <h3>Transactions</h3>
+      <ul id="transactions">
+        <!-- Transactions will appear here -->
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- Sounds -->
+<audio id="soundOn" src="https://actions.google.com/sounds/v1/cartoon/wood_plank_flicks.ogg"></audio>
+<audio id="soundOff" src="https://actions.google.com/sounds/v1/cartoon/pop.ogg"></audio>
+<audio id="soundMine" src="https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg"></audio>
+
+<script>
+  let balance = 0;
+  let ghsPower = 0; // GHS mining power
+  let machineOn = false;
+  const miningRatePer10GHS = 0.0001; // SOL per 10 GHS per minute
+  const minBuyGHS = 100;
+  const solPer100GHS = 0.01;
+
+  const soundOn = document.getElementById('soundOn');
+  const soundOff = document.getElementById('soundOff');
+  const soundMine = document.getElementById('soundMine');
+
+  const transactionsEl = document.getElementById("transactions");
+
+  function login() {
+    const input = document.getElementById("mobile").value;
+    if (input.trim().length >= 8) {
+      document.getElementById("userMobile").textContent = input.trim();
+      document.getElementById("loginScreen").classList.add("hidden");
+      document.getElementById("dashboard").classList.remove("hidden");
+      initFakeTransactions();
+      updateDisplay();
+      startAutoMining();
+    } else {
+      alert("Please enter a valid mobile number.");
+    }
+  }
+
+  function updateDisplay() {
+    document.getElementById("balance").textContent = balance.toFixed(4);
+    document.getElementById("walletBalance").textContent = balance.toFixed(4);
+    document.getElementById("ghsPower").textContent = ghsPower;
+    const miningRate = (ghsPower / 10) * miningRatePer10GHS;
+    document.getElementById("miningRate").textContent = miningRate.toFixed(6);
+  }
+
+  // Mining machine toggle
+  const machineEl = document.getElementById("machine");
+  const machineStatusEl = document.getElementById("machineStatus");
+  machineEl.addEventListener("click", () => {
+    machineOn = !machineOn;
+    if(machineOn) {
+      machineEl.classList.remove("off");
+      machineStatusEl.textContent = "ON";
+      soundOn.play();
+    } else {
+      machineEl.classList.add("off");
+      machineStatusEl.textContent = "OFF";
+      soundOff.play();
+    }
+  });
+
+  function buyGHS() {
+    const input = parseInt(document.getElementById("buyGHSAmount").value, 10);
+    if (isNaN(input) || input < minBuyGHS || input % 100 !== 0) {
+      alert(`Please enter a multiple of 100 GHS, minimum ${minBuyGHS} GHS.`);
+      return;
+    }
+    const costSOL = (input / 100) * solPer100GHS;
+    if (balance >= costSOL) {
+      balance -= costSOL;
+      ghsPower += input;
+      addTransactionEntry("Buy GHS", costSOL);
+      updateDisplay();
+    } else {
+      alert("Insufficient balance to buy GHS.");
+    }
+  }
+
+  // Auto mining function: add mined SOL every minute per GHS, speed up to 6 seconds for demo
+  function startAutoMining() {
+    setInterval(() => {
+      if (machineOn && ghsPower > 0) {
+        const minedSOL = ((ghsPower / 10) * miningRatePer10GHS) / 10; // divide by 10 to speed up from 60s to 6s
+        balance += minedSOL;
+        updateDisplay();
+        soundMine.play();
+        addTransactionEntry("Mined SOL", minedSOL);
+      }
+    }, 6000);
+  }
+
+  // Transaction helpers
+  function addTransactionEntry(type, amount, time = null) {
+    const li = document.createElement("li");
+    li.textContent = `${time ?? new Date().toLocaleString()} — ${type}: ${amount.toFixed(4)} SOL`;
+    li.style.color = type === "Withdrawal" ? "#ff4c4c" : (type === "Deposit" ? "#4caf50" : "#00ffa3");
+    transactionsEl.prepend(li);
+  }
+
+  function addTransaction(text) {
+    const li = document.createElement("li");
+    li.textContent = `${new Date().toLocaleString()} — ${text}`;
+    li.style.color = "#00ffa3";
+    transactionsEl.prepend(li);
+  }
+
+  // Deposit handler
+  function deposit() {
+    const amt = parseFloat(document.getElementById("depositAmount").value);
+    if (isNaN(amt) || amt <= 0) {
+      alert("Enter a valid deposit amount.");
+      return;
+    }
+    balance += amt;
+    addTransactionEntry("Deposit", amt);
+    updateDisplay();
+    document.getElementById("depositAmount").value = "";
+  }
+
+  // Withdrawal handler
+  function withdraw() {
+    const amt = parseFloat(document.getElementById("withdrawAmount").value);
+    if (isNaN(amt) || amt <= 0) {
+      alert("Enter a valid withdrawal amount.");
+      return;
+    }
+    if (amt > balance) {
+      alert("Insufficient balance for withdrawal.");
+      return;
+    }
+    balance -= amt;
+    addTransactionEntry("Withdrawal", amt);
+    updateDisplay();
+    document.getElementById("withdrawAmount").value = "";
+  }
+
+  // Initialize fake transactions on login
+  function initFakeTransactions() {
+    balance = 0.5; // start with some SOL
+    ghsPower = 0;
+    transactionsEl.innerHTML = "";
+
+    const fakeTxs = [
+      { type: "Deposit", amount: 0.3, time: "2025-05-15 09:30" },
+      { type: "Withdrawal", amount: 0.1, time: "2025-05-15 11:45" },
+      { type: "Deposit", amount: 0.2, time: "2025-05-16 08:00" },
+      { type: "Buy GHS", amount: 0.01, time: "2025-05-16 09:15" },
+      { type: "Deposit", amount: 0.15, time: "2025-05-17 07:30" },
+    ];
+
+    fakeTxs.forEach(tx => {
+      addTransactionEntry(tx.type, tx.amount, tx.time);
+      if (tx.type === "Deposit") balance += tx.amount;
+      else if (tx.type === "Withdrawal") balance -= tx.amount;
+      else if (tx.type === "Buy GHS") {
+        ghsPower += (tx.amount / solPer100GHS) * 100; // convert back to GHS power
+      }
+    });
+  }
+
+  // Dark/light mode toggle
+  function toggleMode() {
+    document.body.classList.toggle("light-mode");
+  }
+</script>
+</body>
+</html>
